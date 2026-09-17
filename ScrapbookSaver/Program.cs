@@ -18,6 +18,10 @@ internal static class Program
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
         ApplicationConfiguration.Initialize();
+#if WALLPAPER
+        WallpaperApplication.Run(args);
+        return;
+#else
         var options = SaverOptions.Load();
         var command = args.Length == 0 ? "/c" : args[0].ToLowerInvariant();
 
@@ -205,6 +209,7 @@ internal static class Program
             if (forms.Length == 0) return;
             Application.Run(new SaverContext(forms));
         }
+#endif
     }
 }
 
@@ -241,7 +246,11 @@ internal sealed class SaverOptions
 
     private static string SettingsPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+#if WALLPAPER
+        "ScrapbookWallpaper", "settings.json");
+#else
         "ScrapbookSaver", "settings.json");
+#endif
 
     public static SaverOptions Load()
     {
@@ -337,6 +346,7 @@ internal sealed class SaverForm : Form
         StartPosition = FormStartPosition.Manual;
         Bounds = preview ? new Rectangle(bounds.X + 80, bounds.Y + 60, Math.Min(1000, bounds.Width - 160), Math.Min(650, bounds.Height - 120)) : bounds;
         Text = "Scrapbook Screen Saver — Press Esc to close";
+        Icon = AppArtwork.Icon;
         TopMost = !preview && parentHandle == IntPtr.Zero;
         ShowInTaskbar = preview;
         BackColor = Color.FromArgb(24, 25, 29);

@@ -6,12 +6,14 @@
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>ScrapbookSaver</AssemblyName>
+    <AssemblyName>ScrapbookWallpaper</AssemblyName>
     <Version>1.2.0</Version>
     <ApplicationIcon>../assets/scrapbook.ico</ApplicationIcon>
+    <DefineConstants>$(DefineConstants);WALLPAPER</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="../assets/scrapbook.ico" LogicalName="Scrapbook.Icon" />
     <EmbeddedResource Include="../assets/scrapbook.png" LogicalName="Scrapbook.Artwork" />
+    <Compile Include="../ScrapbookSaver/*.cs" Link="Shared/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

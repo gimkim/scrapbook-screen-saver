@@ -30,11 +30,19 @@ internal sealed class SettingsWindow : Window
     private readonly CheckBox shadow = new() { Content = "Enable drop shadow" };
     private readonly Grid root = new() { Background = Brushes.White };
     private readonly ScrollViewer scroller = new();
+#if WALLPAPER
+    private readonly CheckBox startup = new() { Content = "Run on startup / login", Margin = new Thickness(10) };
+#endif
 
     public SettingsWindow(SaverOptions options)
     {
         this.options = options;
         Title = "Scrapbook Screen Saver Settings";
+        Icon = AppArtwork.WindowIcon;
+#if WALLPAPER
+        Title = "Scrapbook Live Wallpaper Settings";
+        startup.IsChecked = WallpaperStartup.Enabled;
+#endif
         FontFamily = new FontFamily("Segoe UI");
         FontSize = 14;
         Background = Brushes.White;
@@ -62,6 +70,9 @@ internal sealed class SettingsWindow : Window
         content.Children.Add(CreateFoldersSection());
         content.Children.Add(CreateAppearanceSection());
         content.Children.Add(CreateAnimationSection());
+#if WALLPAPER
+        content.Children.Add(startup);
+#endif
         content.Children.Add(new TextBlock
         {
             Text = "Photo width is a percentage of screen width. Edge overflow 0% keeps cards fully on screen; 10% permits up to 10% outside. A shorter animation time is faster.",
@@ -263,7 +274,14 @@ internal sealed class SettingsWindow : Window
         options.DropShadow = shadow.IsChecked == true;
         options.Animation = (EntranceAnimation)animation.SelectedIndex;
         options.AnimationDurationMs = (int)(seconds * 1000);
-        options.Save();
+        try
+        {
+            options.Save();
+#if WALLPAPER
+            WallpaperStartup.SetEnabled(startup.IsChecked == true);
+#endif
+        }
+        catch (Exception ex) { return Error("Could not save settings: " + ex.Message); }
         if (close) Close();
         return true;
     }
@@ -315,6 +333,7 @@ internal sealed class PreviewWindow : Window
     public PreviewWindow(SaverOptions options, Window owner)
     {
         Title = "Scrapbook Screen Saver Preview — Press Esc to close";
+        Icon = AppArtwork.WindowIcon;
         Owner = owner;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Width = Math.Min(960, owner.ActualWidth * 0.9);

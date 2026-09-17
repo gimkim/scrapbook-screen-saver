@@ -26,3 +26,19 @@ Copy-Item .\dist\ScrapbookSaver.exe .\dist\ScrapbookSaver.scr
 ```
 
 The .NET 10 Desktop Runtime is required on the computer where you run the screen saver.
+
+## Separate Live Wallpaper build
+
+```powershell
+dotnet publish .\ScrapbookWallpaper\ScrapbookWallpaper.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o .\dist\wallpaper
+```
+
+Run `dist\wallpaper\ScrapbookWallpaper.exe` to display the collage behind desktop icons on all monitors. Right-click its system tray icon for Settings, Pause, or Exit. Double-click the tray icon to open Settings.
+
+In Settings, tick **Run on startup / login** and click **Save** to start automatically at the current user's Windows sign-in. Untick and save to disable. Keep the executable in a permanent location; if you move it, save the startup option again from its new location. Startup is off by default.
+
+Wallpaper settings are stored separately in `%LOCALAPPDATA%\ScrapbookWallpaper\settings.json`. The default folder follows Windows' Pictures known folder, including redirected Pictures folders. The wallpaper pauses while the session is locked, and retries desktop attachment after Explorer restarts or monitor layout changes. Desktop attachment relies on Explorer's undocumented WorkerW behavior and may need adjustment for future Windows versions.
+
+The wallpaper binary also requires the .NET 10 Desktop Runtime. It does not install or replace the `.scr` screen saver.
+
+On newer Windows raised desktops, the wallpaper uses opaque layered windows under Progman, between the desktop icons and the system wallpaper. Older desktop layouts use the separate WorkerW host. `--diagnose-shell <output-path>` writes the current desktop window hierarchy without starting another wallpaper instance; `--smoke-test <output-path>` runs an eight-second attachment/rendering check and exits. These checks do not substitute for verifying the visible desktop.

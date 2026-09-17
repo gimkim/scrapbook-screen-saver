@@ -2,6 +2,7 @@
 **/obj/
 dist/*.exe
 dist/*.pdb
+dist/wallpaper/
 animation-test/
 /*.png
 /*.txt
