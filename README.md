@@ -14,7 +14,7 @@ The screen saver uses WPF hardware rendering when supported. It prepares up to f
 2. Click **Preview** to test your settings. Press Esc to close the preview.
 3. Right-click `ScrapbookSaver.scr` and choose **Install** to set it as your Windows screen saver.
 
-The default image folder is `%USERPROFILE%\OneDrive\camera\9999-DUCKCOLLECTION`. Choose another folder in Settings if this path does not exist. JPG, PNG, BMP, GIF, and TIFF files are supported, including files in subfolders.
+The default image folder is `%USERPROFILE%\Pictures`. Choose another folder in Settings if this path does not exist. JPG, PNG, BMP, GIF, and TIFF files are supported, including files in subfolders.
 
 Command-line options: `/s` for full-screen mode, `/c` for Settings, `/p <window-handle>` for the Windows preview, and `--preview` for a windowed preview.
 

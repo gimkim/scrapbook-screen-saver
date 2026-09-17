@@ -224,22 +224,20 @@ public sealed class ImageFolderSetting
 
 internal sealed class SaverOptions
 {
-    public string Folder { get; set; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "OneDrive", "camera", "9999-DUCKCOLLECTION");
+    public string Folder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
     public List<string> Folders { get; set; } = [];
     public List<ImageFolderSetting> ImageFolders { get; set; } = [];
     [JsonIgnore] public IEnumerable<string> EnabledFolders => ImageFolders.Where(folder => folder.Enabled).Select(folder => folder.Path);
-    public int IntervalSeconds { get; set; } = 3;
-    public int MinWidthPercent { get; set; } = 17;
-    public int MaxWidthPercent { get; set; } = 30;
+    public int IntervalSeconds { get; set; } = 1;
+    public int MinWidthPercent { get; set; } = 30;
+    public int MaxWidthPercent { get; set; } = 40;
     public int EdgeOverflowPercent { get; set; } = 10;
-    public int BorderPixels { get; set; } = 7;
-    public int MaxTiltDegrees { get; set; } = 7;
-    public int MaxPhotos { get; set; } = 24;
+    public int BorderPixels { get; set; } = 10;
+    public int MaxTiltDegrees { get; set; } = 15;
+    public int MaxPhotos { get; set; } = 32;
     public bool DropShadow { get; set; } = true;
-    public EntranceAnimation Animation { get; set; } = EntranceAnimation.Fade;
-    public int AnimationDurationMs { get; set; } = 800;
+    public EntranceAnimation Animation { get; set; } = EntranceAnimation.Random;
+    public int AnimationDurationMs { get; set; } = 500;
 
     private static string SettingsPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
