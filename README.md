@@ -42,3 +42,7 @@ Wallpaper settings are stored separately in `%LOCALAPPDATA%\ScrapbookWallpaper\s
 The wallpaper binary also requires the .NET 10 Desktop Runtime. It does not install or replace the `.scr` screen saver.
 
 On newer Windows raised desktops, the wallpaper uses opaque layered windows under Progman, between the desktop icons and the system wallpaper. Older desktop layouts use the separate WorkerW host. `--diagnose-shell <output-path>` writes the current desktop window hierarchy without starting another wallpaper instance; `--smoke-test <output-path>` runs an eight-second attachment/rendering check and exits. These checks do not substitute for verifying the visible desktop.
+
+## Development notes
+
+See [AGENTS.md](AGENTS.md) for project concepts, architecture and agent workflow. Session records and retrospective summaries are in [worklog/](worklog/README.md); record each new task in a separate file.

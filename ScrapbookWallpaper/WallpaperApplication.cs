@@ -64,7 +64,8 @@ internal sealed class WallpaperContext : ApplicationContext
         tray.DoubleClick += (_, _) => OpenSettings();
         monitor.Tick += (_, _) =>
         {
-            var nextLayout = string.Join(";", Screen.AllScreens.Select(s => s.Bounds.ToString()));
+            using var dpi = new DesktopDpiScope();
+            var nextLayout = string.Join(";", DesktopHost.GetMonitorBounds());
             if (desktop == IntPtr.Zero || !DesktopHost.IsWindow(desktop) || windows.Any(w => w.IsDisposed) || layout != nextLayout) Rebuild();
             else DesktopHost.MaintainLayerOrder(windows.Select(w => w.Handle));
         };
@@ -83,6 +84,9 @@ internal sealed class WallpaperContext : ApplicationContext
 
     private void Rebuild()
     {
+        // WPF input/Closed callbacks can run in a different DPI context from the
+        // WinForms message loop. Keep all desktop coordinates in physical pixels.
+        using var dpi = new DesktopDpiScope();
         foreach (var window in windows) window.Dispose();
         windows.Clear();
         if (exiting || pause.Checked || locked) return;
@@ -95,14 +99,18 @@ internal sealed class WallpaperContext : ApplicationContext
         try
         {
             var options = SaverOptions.Load();
-            foreach (var screen in Screen.AllScreens)
+            var screens = DesktopHost.GetMonitorBounds();
+            foreach (var bounds in screens)
             {
-                var window = new WallpaperForm(options, desktop, screen.Bounds);
+                // Match Explorer when creating HWNDs to avoid SetParent resetting
+                // DPI awareness across processes. Restore our caller afterwards.
+                using var hostDpi = new DesktopDpiScope(desktop);
+                var window = new WallpaperForm(options, desktop, bounds);
                 windows.Add(window);
                 window.Show();
                 window.AttachToDesktop();
             }
-            layout = string.Join(";", Screen.AllScreens.Select(s => s.Bounds.ToString()));
+            layout = string.Join(";", screens);
             tray.Text = "Scrapbook Live Wallpaper";
         }
         catch (Exception ex)
@@ -132,8 +140,9 @@ internal sealed class WallpaperContext : ApplicationContext
         smoke.Tick += (_, _) =>
         {
             smoke.Stop();
+            using var dpi = new DesktopDpiScope();
             DesktopHost.GetWindowRect(desktop, out var hostBounds);
-            File.WriteAllLines(path, new[] { $"Host={desktop}; Rect={hostBounds}", $"Displays={Screen.AllScreens.Length}", $"Windows={windows.Count}", $"StartupEnabled={WallpaperStartup.Enabled}" }
+            File.WriteAllLines(path, new[] { $"Host={desktop}; Rect={hostBounds}", $"Displays={DesktopHost.GetMonitorBounds().Length}", $"Windows={windows.Count}", $"StartupEnabled={WallpaperStartup.Enabled}" }
                 .Concat(windows.Select(w => { DesktopHost.GetWindowRect(w.Handle, out var rect); return $"ParentMatches={DesktopHost.GetParent(w.Handle) == desktop}; ScreenRect={rect}; Photos={w.VisibleCards}; Sources={w.SourceCount}"; })));
             ExitThread();
         };
@@ -201,6 +210,7 @@ internal sealed class WallpaperForm : Form
     public void AttachToDesktop()
     {
         DesktopHost.Attach(Handle, desktop);
+        using var dpi = new DesktopDpiScope();
         var point = screenBounds.Location;
         if (!DesktopHost.ScreenToClient(desktop, ref point)) throw new System.ComponentModel.Win32Exception();
         if (!DesktopHost.SetWindowPos(Handle, IntPtr.Zero, point.X, point.Y, screenBounds.Width, screenBounds.Height, 0x0034))
@@ -215,11 +225,28 @@ internal sealed class WallpaperForm : Form
     }
 }
 
+// Use short synchronous scopes: never carry a thread DPI context across await.
+internal sealed class DesktopDpiScope : IDisposable
+{
+    private readonly IntPtr previous;
+    public DesktopDpiScope(IntPtr window = default)
+    {
+        var context = window == IntPtr.Zero ? new IntPtr(-4) : GetWindowDpiAwarenessContext(window);
+        previous = SetThreadDpiAwarenessContext(context);
+        if (previous == IntPtr.Zero) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+    }
+    public void Dispose() => SetThreadDpiAwarenessContext(previous);
+    [DllImport("user32.dll")] private static extern IntPtr GetWindowDpiAwarenessContext(IntPtr window);
+    [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+}
+
 internal static class DesktopHost
 {
     private static IntPtr progman, worker, icons;
     private static bool raisedDesktop;
     private delegate bool EnumWindowsProc(IntPtr window, IntPtr parameter);
+    private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, ref NativeRect bounds, IntPtr parameter);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc callback, IntPtr parameter);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindow(string className, string? name);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string className, string? name);
     [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr parameter);
@@ -238,6 +265,22 @@ internal static class DesktopHost
     [DllImport("user32.dll", EntryPoint = "SetWindowLongW")] private static extern int SetWindowLong(IntPtr window, int index, int value);
     [DllImport("user32.dll", SetLastError = true)] public static extern bool ScreenToClient(IntPtr window, ref Point point);
     [DllImport("user32.dll", SetLastError = true)] public static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
+
+    public static Rectangle[] GetMonitorBounds()
+    {
+        using var dpi = new DesktopDpiScope();
+        // Screen.AllScreens caches bounds that may have been read from a WPF or
+        // system-aware callback. Enumerate afresh in a known physical-pixel context.
+        var bounds = new List<Rectangle>();
+        MonitorEnumProc callback = (IntPtr monitor, IntPtr hdc, ref NativeRect rect, IntPtr parameter) =>
+        {
+            bounds.Add(Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom));
+            return true;
+        };
+        if (!EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, callback, IntPtr.Zero))
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+        return bounds.ToArray();
+    }
 
     public static void Attach(IntPtr window, IntPtr parent)
     {
@@ -268,7 +311,8 @@ internal static class DesktopHost
 
     public static string Describe()
     {
-        var lines = new List<string>();
+        using var dpi = new DesktopDpiScope();
+        var lines = GetMonitorBounds().Select(bounds => $"Monitor (physical pixels): {bounds}").ToList();
         void Visit(IntPtr window, int depth)
         {
             var name = new System.Text.StringBuilder(256);
